@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-"""Script scans for files and subdirectories in a directory and writes to file 
+"""Script scans for files and subfolders in a directory and writes to file 
 a list of data structured by hierarchy.
 Requires Python 3.4 for pathlib module.
 """
 
 __author__ = "Andrei Ermishin"
-__copyright__ = "Copyright 2018"
+__copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -22,6 +22,7 @@ import tkinter as tk
 # Explicitly import some submodules:
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import messagebox
 
 # For low-level path manipulation on strings: import os.
 # New module offers classes representing filesystem paths.
@@ -30,8 +31,8 @@ from pathlib import Path
 from datetime import date
 
 # 16 x 9
-WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 450
+WINDOW_WIDTH = 640
+WINDOW_HEIGHT = 360
 
 DEF_FNAME = 'FileLister'
 
@@ -81,8 +82,6 @@ class Window(ttk.Frame):
         self.dir_path = Path.cwd()
         self.file_path = self.dir_path.joinpath(DEF_FNAME 
                                                 + str(date.today()) + '.txt')
-        self.frame_padx = 15
-        self.frame_pady = 10
         
         self.create_widgets()
         self.arrange_widgets()
@@ -91,8 +90,8 @@ class Window(ttk.Frame):
         """Create widgets within main frame (self)."""
         # dir_frame
         self.dir_frame = ttk.Labelframe(self.master, text='Directory to scan')
-        self.choose_dir_btn = ttk.Button(self.dir_frame, text='Choose...',
-                                    command=self.master.destroy)
+        self.choose_dir_btn = ttk.Button(self.dir_frame, text='Open...',
+                                    command=self.open_dir_dlg)
         self.dir_lbl = ttk.Label(self.dir_frame)
         self.dir_lbl_text = tk.StringVar()
         self.dir_lbl['textvariable'] = self.dir_lbl_text
@@ -108,50 +107,82 @@ class Window(ttk.Frame):
         self.file_lbl_text.set(str(self.file_path))
 
         # options_frame
-        self.options_frame = ttk.Labelframe(self.master, text='Options')
+        self.options_frame = ttk.Labelframe(self.master,
+                                            text='Options to run')
         self.scan_subfolders = tk.BooleanVar()
         self.scan_subfolders.set(True)
-        self.scan_subf_chk = ttk.Checkbutton(self.options_frame, 
-                                text='Scan subfolders', 
+        self.scan_subf_chk = ttk.Checkbutton(self.options_frame,
+                                text='Scan subfolders',
                                 variable=self.scan_subfolders, onvalue=True)
-
-        self.run_btn = ttk.Button(self.master, text='Run',
+        self.include_dirs = tk.BooleanVar()
+        self.include_dirs.set(True)
+        self.incl_dirs_chk = ttk.Checkbutton(self.options_frame,
+                                text='Include directories',
+                                variable=self.include_dirs, onvalue=True)
+        self.run_btn = ttk.Button(self.options_frame, text='Run',
                                     command=self.master.destroy)
-        self.about_btn = ttk.Button(self.master, text='About',
+        self.progressbar = ttk.Button(self.options_frame, text='Progressbar',
                                     command=self.master.destroy)
-        self.quit_btn = ttk.Button(self.master, text='Exit',
+        
+        # bottom_frame
+        self.bottom_frame = ttk.Frame(self.master)
+        self.about_btn = ttk.Button(self.bottom_frame, text='About',
+                                    command=self.about_dlg)
+        self.quit_btn = ttk.Button(self.bottom_frame, text='Exit',
                                     command=self.master.destroy)
 
     def arrange_widgets(self):
         """Organaze and show widgets."""
 
-        self.dir_frame.pack(fill='x', 
-                            padx=self.frame_padx, pady=self.frame_pady)
-        self.choose_dir_btn.pack(side='left', padx=20, pady=20)
-        self.dir_lbl.pack(side='right', padx=20, pady=20)
+        frame_x = 20
+        frame_y = 5
+        btn_x = 20
+        btn_y = 10
 
-        self.file_frame.pack(fill='x', 
-                            padx=self.frame_padx, pady=self.frame_pady)
-        self.save_file_btn.pack(side='left', padx=20, pady=20)
-        self.file_lbl.pack(side='right', padx=20, pady=20)
+        self.dir_frame.pack(fill='x', padx=frame_x, pady=frame_y)
+        self.choose_dir_btn.pack(side='left', padx=btn_x, pady=btn_y+5)
+        self.dir_lbl.pack(side='right', padx=btn_x, pady=btn_y+5)
 
-        self.options_frame.pack(fill='x',
-                                padx=self.frame_padx, pady=self.frame_pady)
-        self.scan_subf_chk.pack()
+        self.file_frame.pack(fill='x', padx=frame_x, pady=frame_y)
+        self.save_file_btn.pack(side='left', padx=btn_x, pady=btn_y+5)
+        self.file_lbl.pack(side='right', padx=btn_x, pady=btn_y+5)
 
-        self.run_btn.pack(side='right', padx=20, pady=20)
-        self.about_btn.pack(side='left', padx=20, pady=20)
-        self.quit_btn.pack(side='right', padx=20, pady=20)
+        self.options_frame.pack(fill='x', padx=frame_x, pady=frame_y+10)
+        self.scan_subf_chk.pack(side='left', padx=btn_x)
+        self.incl_dirs_chk.pack(side='left', padx=btn_x)
+        self.run_btn.pack(anchor='ne', padx=btn_x, pady=btn_y)
+        self.progressbar.pack(anchor='se')
+
+        self.bottom_frame.pack(side='bottom', fill='x',
+                                padx=frame_x, pady=frame_y)
+        self.about_btn.pack(side='left', padx=btn_x, pady=btn_y)
+        self.quit_btn.pack(side='right', padx=btn_x, pady=btn_y)
     
+    def open_dir_dlg(self):
+        """Open dialog window for choosing a directory to scan."""
+
+        dir_name = filedialog.askdirectory(initialdir=str(self.dir_path))
+        if dir_name:
+            self.dir_path = Path(dir_name)
+            self.dir_lbl_text.set(dir_name)
+
     def save_file_dlg(self):
         """Open dialog window which allows to choose a path for saving."""
 
-        fname = filedialog.asksaveasfilename(defaultextension='.txt', 
-                    filetypes=[('All files', '.*'), ('Text files', '.txt')], 
-                    initialfile=DEF_FNAME + str(date.today()))
+        fname = filedialog.asksaveasfilename(defaultextension='.txt',
+                    filetypes=[('Text files', '.txt'), ('All files', '.*')],
+                    initialdir=self.file_path.parent,
+                    initialfile=self.file_path.stem)
         if fname:
             self.file_path = Path(fname)
             self.file_lbl_text.set(fname)
+    
+    def about_dlg(self):
+        """Open window with an info about the application"""
+
+        msg = '{}\nversion: {}\n\n{} by {}'.format(DEF_FNAME,
+                        __version__, __copyright__, __author__)
+        messagebox.showinfo(title='About ' + DEF_FNAME, message=msg)
 
 
 def main(argv):
@@ -194,9 +225,6 @@ if __name__ == "__main__":
 
 
 # TODO:
-# - arrange_widgets()
-# from tkinter import messagebox
-# messagebox.showinfo(title='12345', message='About')
 # =messagebox.askquestion("Simple Question", "Do you love Python?")
 
 # - scan_directory()
