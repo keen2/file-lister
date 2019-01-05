@@ -8,7 +8,7 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -16,6 +16,7 @@ __status__ = "Prototype"
 
 usage = '\nNote, usage: %s dir_path file_path\n'
 usage += 'Shortly for current directory: %s . file_name\n'
+usage += 'Print to the console if no file_path is given: %s .\n'
 
 
 import tkinter as tk
@@ -37,18 +38,16 @@ WINDOW_HEIGHT = 360
 DEF_FNAME = 'FileLister'
 
 
-def scan_directory(path):
-    """Input: Path object of directory.
-    ######## desc
-    Returns a list of files and directories along given path.
-    ######## desc
+def scan_directory(dir_path):
+    """Return strings of files and directories in tree-like manner.
+    Recursively yield all entries in dir_path Path object with rglob().
     """
-    # def tree(directory):
-    #     print(f'+ {directory}')
-    #     for path in sorted(directory.rglob('*')):
-    #         depth = len(path.relative_to(directory).parts)
-    #         spacer = '    ' * depth
-    #         print(f'{spacer}+ {path.name}')
+    yield '+ {}'.format(dir_path.resolve())
+
+    for path in sorted(dir_path.rglob('*')):
+        depth = len(path.relative_to(dir_path).parts)
+        indent = '|   ' * depth
+        yield '{}+ {}'.format(indent, path.name)
     # Output:
     # >>> tree(pathlib.Path.cwd())
     # + /home/gahjelle/realpython
@@ -60,15 +59,6 @@ def scan_directory(path):
     #         + file_c.py
     #     + file_1.txt
     #     + file_2.txt
-    entries_list = []
-    # recursive - rglob()
-    # Filter
-    # for entry in pathlib_path.glob('*.py'):
-    for entry in path.iterdir():
-        # if entry.is_dir():
-        entries_list.append(entry.name)
-
-    return entries_list
 
 
 class Window(ttk.Frame):
@@ -120,7 +110,7 @@ class Window(ttk.Frame):
                                 text='Include directories',
                                 variable=self.include_dirs, onvalue=True)
         self.run_btn = ttk.Button(self.options_frame, text='Run',
-                                    command=self.master.destroy)
+                                    command=self.run_scan_dir)
         self.progressbar = ttk.Button(self.options_frame, text='Progressbar',
                                     command=self.master.destroy)
         
@@ -177,23 +167,34 @@ class Window(ttk.Frame):
             self.file_path = Path(fname)
             self.file_lbl_text.set(fname)
     
+    def run_scan_dir(self):
+        """Write scanning results of selected directory to a given file."""
+
+        found_files = scan_directory(self.dir_path)
+        with self.file_path.open('w') as fhand:
+            print(*found_files, sep='\n', file=fhand)
+
     def about_dlg(self):
         """Open window with an info about the application"""
 
         msg = '{}\nversion: {}\n\n{} by {}'.format(DEF_FNAME,
                         __version__, __copyright__, __author__)
-        messagebox.showinfo(title='About ' + DEF_FNAME, message=msg)
+        messagebox.showinfo('About ' + DEF_FNAME, msg)
 
 
 def main(argv):
     """Uses GUI class or console to scan folders depending on arguments."""
     # Run GUI.
     if len(argv) == 1:
-        # Create a toplevel widget of tkinter as main window of an application
+        # Create a toplevel widget of tkinter as main window of application.
         root = tk.Tk()
         app = Window(root)
         app.master.title('FileLister ' + __version__[:-2])
-        app.master.geometry('{}x{}'.format(WINDOW_WIDTH, WINDOW_HEIGHT))
+        # Center the window to be right under an appearing messagebox.
+        window_x = int(root.winfo_screenwidth()/2 - WINDOW_WIDTH/2)
+        window_y = int(root.winfo_screenheight()*2/5 - WINDOW_HEIGHT/2)
+        app.master.geometry('{}x{}+{}+{}'.format(WINDOW_WIDTH, WINDOW_HEIGHT,
+                                                 window_x, window_y))
         app.master.resizable(False, False)
         # Run the main loop of Tcl.
         app.master.mainloop()
@@ -215,7 +216,7 @@ def main(argv):
                 print(*found_files, sep='\n')
 
         else:
-            print('Invalid directory path!', usage.replace('%s', argv[0]))
+            print('Invalid directory path!!!\n', usage.replace('%s', argv[0]))
 
 
 if __name__ == "__main__":
@@ -225,8 +226,6 @@ if __name__ == "__main__":
 
 
 # TODO:
-# =messagebox.askquestion("Simple Question", "Do you love Python?")
-
-# - scan_directory()
-# - if posiible do scan recursively
-# - maxdepth
+# view/structure
+# stats
+# maxdepth
