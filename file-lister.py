@@ -8,7 +8,7 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -17,6 +17,40 @@ __status__ = "Prototype"
 usage = '\nNote, usage: %s dir_path file_path\n'
 usage += 'Shortly for current directory: %s . file_name\n'
 usage += 'Print to the console if no file_path is given: %s .\n'
+
+
+# ICON_GIF = 'documents-icon24.png'
+# # this will convert a GIF to python source code
+# import base64
+# with open(ICON_GIF, 'rb') as f_icon:
+#     print("icon='''\\\n", base64.encodebytes(f_icon.read()).decode(), "'''")
+ICON24 = '''
+iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAFMUlEQVR42oVWa2xUVRCembv3Ltsu
+xbbbVheE0gIhMSAKUeODxMQEMRilUEUkQY3a0AUSDJjgK1HBYCSCsMXyw58kxAA+kGgNBMH4A0IU
+E0ikCAWqlhar9kH3ce8945xz77ZLETxpes9jZr6Z78zMWYRwuMefXcu5zApQ3mQk2bCQgRiQfJQ1
+yxrMPiLKfwZmZF++SqZK5kp2fTmynA6wSz62Z+/arO2iMf594z6v76+FYFnGCBEotHzKUiX4VQ8r
+JptI7DIaDW1KQypUipTelLkAipYH1PMdxLxuwLLEZ/b9exrw/J4FDyWd7FGFpIh8sSP65Ku/sY68
+O7cAshcoj4wAoPA1ARX2ZI4RBSfXUjV0QFcuNhd3rZ+1ofGBqtc9z2WvtJ5VzYMStcLB+L0ciSW0
+bkDJyCiskWXkclmwbWdYRkjFXN9lrmlfQ20nhzbipuVT0+sWTUz1lsxR7sw3iL2MFlNCMIU6BY//
+MwJ9JWfO/CLRWyR4kEwmFTlxsg4vgb0/XG7BDcvq0+ueHJ/6/a5PhCWbgoivMXpTAG00m80oyQQD
+pmRAJEb+t8tg/4kQINUwI9U9czt72T7u6enRiYI6MUZREg5GscT6K7Z4woQJ4ObzePHiRY7YNlRX
+V6MVjTMefI4O/NgjAE8n082N96UuTd+k0M9QLu+LbpcQzzeIgJXrl1JpSZV4Hch4nqc6Oy+R40Sh
+srJSKCol52gTHDh2QQAWVaZffnx66vyMVqXyWYpmDsPdFd9I5lijALCwVJLO9FXnGmVbQIlEAjzX
+Va7nCsAYOfUVWzGKti2GtlP9ArA4kX5pfl3q57qPOJ/N8Hg+CLNqfkKfdZUVKBKiBYPCNVKO955r
+llWEKyorwHdd7O7uZhSfym8ZhxQt4YrDz9Ch9mwA8PwjdakjiVdV3dgTVOuchmqrU4qrhMCKit2o
+Aq1pcjwIgcCnc95sBcolIUy8zilfItBODLhlqmPoHpp44hU48mumBd9tSKSXL6xPJeuF9OyguBqR
+69Nlqy+WtVFtmU1BmV4RRETsoqlns4FaKkwEub7YWD51fIg+P/RHC77ZmGx5Z3Wy2R3Ky4k0CQp5
+ZyiaczA3vUK6DqHmT1GxDIRwpOUVWaVj4K0POnfgh6n61jVPxJtyHlyrcN080DZ9J1jdVD7iAGzb
+d3Unbl1R27p6QVmTZKfSN0nDXoyOIEyq/wMw59IeIwTpL/sEoGlS66rHDIA2zSZfKCyuAAzN7ghA
+gXvpRXJvFGYaG4hwzuw4ROn9ArDlxdrWVfPjJoKg9IN2fQ2nuuiYYMTDoFUY2OsokjsSWEcoSh8Y
+EIAXJraufHRsU94NAQI71ykM13IRgJa5kbwG2P51/07cuPTWlnULKpo1RWz+wrKlkCJdXsPzkLKA
+PtOQtHBQklxEEQlFQJu/6N2BbzeUb39t4W0rM748TwWiR7yEAhVBFmniUT+SuqyV4W2YRgqrIrhk
+Ry75/T1daVw6d9yqXe/N2TZw+jd5JtE4r19YLGrXqMGkBUlFa9fDelEBdYZZMLURNl55r5jid9TC
+8vXHVqMTtRKnttZ1TJkUj/dfligob9o1m4xC8BWY19+ungPen6dFfShs37q0pa+V3C4rFznbxezr
+bcJ4uY2XBrzBWSvbJ5vuUhXDeQfT0z6d1nulLH81A3bctIsgD3XCa71oHDg/FBZt0SA7yF3fg2yv
+CyXVpdAeL++ft/b8U92Dqg2LRGumVNlL6ipwqvxEQRg9OHT6BkOfKJf5wj989uwVd7csu/X+v4fr
+vDwfoGHwAAAAAElFTkSuQmCC
+'''
 
 
 import tkinter as tk
@@ -38,27 +72,56 @@ WINDOW_HEIGHT = 360
 DEF_FNAME = 'FileLister'
 
 
-def scan_directory(dir_path):
+def size2str(num, suffix='B'):
+    """Convert size from bytes to human readable string."""
+    for unit in ['','K','M','G','T']:
+        if abs(num) < 1024.0:
+            return '{:3.1f} {}{}'.format(num, unit, suffix)
+        num /= 1024.0
+    return '>1000 TB'
+
+def dir_size(dir_path):
+    """Return size of a directory in bytes."""
+    return sum(path.stat().st_size for path in dir_path.rglob('*'))
+
+def scan_directory(dir_path, console=False):
     """Return strings of files and directories in tree-like manner.
     Recursively yield all entries in dir_path Path object with rglob().
     """
-    yield '+ {}'.format(dir_path.resolve())
+    str_date = date.today().strftime('%d.%m.%Y')
+    head = '{}  File listing for:  {}\n'.format(str_date, dir_path.resolve())
+    stars = '*' * len(head) + '\n'
+    try:
+        size = 'Size of directory: {}\n'.format(size2str(dir_size(dir_path)))
+        yield stars + head + stars + size
 
-    for path in sorted(dir_path.rglob('*')):
-        depth = len(path.relative_to(dir_path).parts)
-        indent = '|   ' * depth
-        yield '{}+ {}'.format(indent, path.name)
-    # Output:
-    # >>> tree(pathlib.Path.cwd())
-    # + /home/gahjelle/realpython
-    #     + directory_1
-    #         + file_a.md
-    #     + directory_2
-    #         + file_a.md
-    #         + file_b.pdf
-    #         + file_c.py
-    #     + file_1.txt
-    #     + file_2.txt
+        prev_depth = 0
+        for path in sorted(dir_path.rglob('*')):
+            depth = len(path.relative_to(dir_path).parts)
+            indent = ' ' * 5 * (depth-1)
+            name = indent + path.name
+            v_ind = '\n' if depth != prev_depth and not path.is_dir() else ''
+            dot1 = '-'
+            dot2 = ' '
+            if path.is_dir():
+                size = size2str(dir_size(path))
+                data = '\n{:{fill}<130}[{}]'.format(name, size, fill=dot1)
+            else:
+                size = size2str(path.stat().st_size)
+                data = '{:{fill}<120}{}'.format(name, size, fill=dot2)
+            prev_depth = depth
+            yield v_ind + data
+    except MemoryError as m_err:
+        tip = '\n\nTry folder with less depth or less small files.'
+        if not console:
+            messagebox.showerror(m_err.__class__.__name__, str(m_err) + tip)
+        else:
+            print(m_err, tip)
+    except Exception as e:
+        if not console:
+            messagebox.showerror(e.__class__.__name__, str(e))
+        else:
+            print(e)
 
 
 class Window(ttk.Frame):
@@ -70,7 +133,7 @@ class Window(ttk.Frame):
         super().__init__(master)
         self.master = master    # it's root=tk.TK()
         self.dir_path = Path.cwd()
-        self.file_path = self.dir_path.joinpath(DEF_FNAME 
+        self.file_path = self.dir_path.joinpath(DEF_FNAME
                                                 + str(date.today()) + '.txt')
         
         self.create_widgets()
@@ -171,7 +234,7 @@ class Window(ttk.Frame):
         """Write scanning results of selected directory to a given file."""
 
         found_files = scan_directory(self.dir_path)
-        with self.file_path.open('w') as fhand:
+        with self.file_path.open('w', encoding='utf-8') as fhand:
             print(*found_files, sep='\n', file=fhand)
 
     def about_dlg(self):
@@ -186,10 +249,13 @@ def main(argv):
     """Uses GUI class or console to scan folders depending on arguments."""
     # Run GUI.
     if len(argv) == 1:
-        # Create a toplevel widget of tkinter as main window of application.
         root = tk.Tk()
+        # Pass a toplevel widget of tkinter as main window of the application.
         app = Window(root)
         app.master.title('FileLister ' + __version__[:-2])
+        # Set the icon (must keep a reference from destroying by GC).
+        img = tk.PhotoImage(data=ICON24)
+        app.master.tk.call('wm', 'iconphoto', app.master._w, img)
         # Center the window to be right under an appearing messagebox.
         window_x = int(root.winfo_screenwidth()/2 - WINDOW_WIDTH/2)
         window_y = int(root.winfo_screenheight()*2/5 - WINDOW_HEIGHT/2)
@@ -202,18 +268,20 @@ def main(argv):
     # Use console.
     elif len(argv) > 1:
         if Path(argv[1]).is_dir():
-            # Path object is returned.
             dir_path = Path(argv[1])
-            found_files = scan_directory(dir_path)
+            found_files = scan_directory(dir_path, console=True)
 
             # Print to given file.
+            # In Windows cmd:
+            # powershell -command "iex \"tree d:\movies /F\" > \"d:\123.txt\""
             if len(argv) > 2:
                 file_path = Path(argv[2]).with_suffix('.txt')
-                with file_path.open('w') as fhand:
+                with file_path.open('w', encoding='utf-8') as fhand:
                     print(*found_files, sep='\n', file=fhand)
             # Print to console if no file_path entered.
             else:
                 print(*found_files, sep='\n')
+                # In Windows cmd: tree d:\movies /F
 
         else:
             print('Invalid directory path!!!\n', usage.replace('%s', argv[0]))
@@ -226,6 +294,10 @@ if __name__ == "__main__":
 
 
 # TODO:
-# view/structure
-# stats
-# maxdepth
+# progressbar -> 1.1
+# option->movies: if path.suffix in ['.mp4', '.mkv', '.avi']:
+# option-> music,photo,text/books, code     -->>separator
+# .txt, .html (tree)
+
+# (D:\Programming\Study\Git)add instruction how to add and 
+# add screen: ![#2](screenshots/example-2.png?raw=true)
