@@ -8,7 +8,7 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.0.5"
+__version__ = "1.1.1"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -20,7 +20,7 @@ usage += 'Print to the console if no file_path is given: %s .\n'
 
 
 # ICON_GIF = 'documents-icon24.png'
-# # this will convert a GIF to python source code
+# # This will convert a GIF/PNG to python source code.
 # import base64
 # with open(ICON_GIF, 'rb') as f_icon:
 #     print("icon='''\\\n", base64.encodebytes(f_icon.read()).decode(), "'''")
@@ -64,6 +64,7 @@ from tkinter import messagebox
 from pathlib import Path
 
 from datetime import date
+import threading
 
 # 16 x 9
 WINDOW_WIDTH = 640
@@ -74,7 +75,7 @@ DEF_FNAME = 'FileLister'
 
 def size2str(num, suffix='B'):
     """Convert size from bytes to human readable string."""
-    for unit in ['','K','M','G','T']:
+    for unit in ('', 'K', 'M', 'G', 'T'):
         if abs(num) < 1024.0:
             return '{:3.1f} {}{}'.format(num, unit, suffix)
         num /= 1024.0
@@ -88,12 +89,13 @@ def scan_directory(dir_path, console=False):
     """Return strings of files and directories in tree-like manner.
     Recursively yield all entries in dir_path Path object with rglob().
     """
+    dir_path_str = str(dir_path.resolve())
     str_date = date.today().strftime('%d.%m.%Y')
-    head = '{}  File listing for:  {}\n'.format(str_date, dir_path.resolve())
-    stars = '*' * len(head) + '\n'
+    header = 'File listing on {} for:\n'.format(str_date)
+    stars = '*' * len(dir_path_str) + '\n'
     try:
-        size = 'Size of directory: {}\n'.format(size2str(dir_size(dir_path)))
-        yield stars + head + stars + size
+        size = 'Size: ' + size2str(dir_size(dir_path)) + '\n\n'
+        yield header + stars + dir_path_str + '\n' + stars + size
 
         prev_depth = 0
         for path in sorted(dir_path.rglob('*')):
@@ -174,8 +176,10 @@ class Window(ttk.Frame):
                                 variable=self.include_dirs, onvalue=True)
         self.run_btn = ttk.Button(self.options_frame, text='Run',
                                     command=self.run_scan_dir)
-        self.progressbar = ttk.Button(self.options_frame, text='Progressbar',
-                                    command=self.master.destroy)
+        self.progressbar = ttk.Progressbar(self.options_frame,
+                                            orient='horizontal',
+                                            length=WINDOW_WIDTH//5,
+                                            mode='determinate')
         
         # bottom_frame
         self.bottom_frame = ttk.Frame(self.master)
@@ -203,8 +207,8 @@ class Window(ttk.Frame):
         self.options_frame.pack(fill='x', padx=frame_x, pady=frame_y+10)
         self.scan_subf_chk.pack(side='left', padx=btn_x)
         self.incl_dirs_chk.pack(side='left', padx=btn_x)
-        self.run_btn.pack(anchor='ne', padx=btn_x, pady=btn_y)
-        self.progressbar.pack(anchor='se')
+        self.run_btn.pack(anchor='e', padx=btn_x, pady=(btn_y, 0))
+        self.progressbar.pack(anchor='e', pady=(0, btn_y))
 
         self.bottom_frame.pack(side='bottom', fill='x',
                                 padx=frame_x, pady=frame_y)
@@ -231,14 +235,28 @@ class Window(ttk.Frame):
             self.file_lbl_text.set(fname)
     
     def run_scan_dir(self):
+        """Start new thread for showing animation of progressbar."""
+        self.run_btn.state(['disabled'])
+        threading.Thread(target=self.scan_dir_thread, daemon=True).start()
+    
+    def scan_dir_thread(self):
         """Write scanning results of selected directory to a given file."""
-
-        found_files = scan_directory(self.dir_path)
+        num_items = 0
+        for item in self.dir_path.rglob('*'):
+            num_items += 1
+        
+        self.progressbar["maximum"] = num_items
+        self.progressbar.start()
         with self.file_path.open('w', encoding='utf-8') as fhand:
-            print(*found_files, sep='\n', file=fhand)
+            for item in scan_directory(self.dir_path):
+                print(item, sep='\n', file=fhand)
+                self.progressbar.step()
+        self.run_btn.state(['!disabled'])
+        self.progressbar.stop()
+        self.progressbar["value"] = num_items
 
     def about_dlg(self):
-        """Open window with an info about the application"""
+        """Open window with info about the application."""
 
         msg = '{}\nversion: {}\n\n{} by {}'.format(DEF_FNAME,
                         __version__, __copyright__, __author__)
@@ -269,20 +287,21 @@ def main(argv):
     elif len(argv) > 1:
         if Path(argv[1]).is_dir():
             dir_path = Path(argv[1])
-            found_files = scan_directory(dir_path, console=True)
 
             # Print to given file.
             # In Windows cmd:
             # powershell -command "iex \"tree d:\movies /F\" > \"d:\123.txt\""
             if len(argv) > 2:
+                print('Scanning...\n')
                 file_path = Path(argv[2]).with_suffix('.txt')
                 with file_path.open('w', encoding='utf-8') as fhand:
-                    print(*found_files, sep='\n', file=fhand)
+                    print(*scan_directory(dir_path, console=True),
+                            sep='\n', file=fhand)
+                print('\n\nData is written to: ' + file_path.name)
             # Print to console if no file_path entered.
             else:
-                print(*found_files, sep='\n')
+                print(*scan_directory(dir_path, console=True), sep='\n')
                 # In Windows cmd: tree d:\movies /F
-
         else:
             print('Invalid directory path!!!\n', usage.replace('%s', argv[0]))
 
@@ -294,7 +313,6 @@ if __name__ == "__main__":
 
 
 # TODO:
-# progressbar -> 1.1
 # option->movies: if path.suffix in ['.mp4', '.mkv', '.avi']:
 # option-> music,photo,text/books, code     -->>separator
 # .txt, .html (tree)
