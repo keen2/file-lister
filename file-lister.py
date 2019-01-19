@@ -8,7 +8,7 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -66,11 +66,33 @@ from pathlib import Path
 from datetime import date
 import threading
 
-# 16 x 9
+# 4 x 3
 WINDOW_WIDTH = 640
-WINDOW_HEIGHT = 360
+WINDOW_HEIGHT = 480
 
 DEF_FNAME = 'FileLister'
+
+ALL = 'All'
+MOVIES = 'Movies'
+MUSIC = 'Music'
+PHOTO = 'Photo'
+BOOKS = 'Books'
+CODE = 'Code'
+
+TXT = '.txt'
+HTM = '.htm'
+
+FILE_TYPES = {
+    ALL:    ['*'],
+    MOVIES: ['3GP', 'ASF', 'AVI', 'FLV', 'M4P', 'M4V', 'MKV', 'MOV', 'MPG',
+             'MPEG', 'MP4', 'MTS', 'M2TS', 'QT', 'TS', 'VOB', 'WEBM', 'WMV'],
+    MUSIC:  ['AAC', 'DTS', 'M4A', 'MP3', 'WAV', 'WMA'],
+    PHOTO:  ['BMP', 'GIF', 'JPG', 'JPEG', 'PNG', 'RAW', 'SVG'],
+    BOOKS:  ['DJVU', 'DOC', 'DOCX', 'EPUB', 'FB2', 'ODT', 'PDF',
+             'RTF', 'TIFF', 'TXT'],
+    CODE:   ['BAT', 'C', 'CC', 'CPP', 'CS', 'GO', 'H', 'HH', 'HPP', 'IPYNB',
+             'JAVA', 'JS', 'M', 'PHP', 'PL', 'PY', 'R', 'RB', 'SWIFT']
+}
 
 
 def size2str(num, suffix='B'):
@@ -136,10 +158,11 @@ class Window(ttk.Frame):
         self.master = master    # it's root=tk.TK()
         self.dir_path = Path.cwd()
         self.file_path = self.dir_path.joinpath(DEF_FNAME
-                                                + str(date.today()) + '.txt')
+                                                + str(date.today()) + TXT)
         
         self.create_widgets()
         self.arrange_widgets()
+        self.set_defaults()
     
     def create_widgets(self):
         """Create widgets within main frame (self)."""
@@ -150,7 +173,6 @@ class Window(ttk.Frame):
         self.dir_lbl = ttk.Label(self.dir_frame)
         self.dir_lbl_text = tk.StringVar()
         self.dir_lbl['textvariable'] = self.dir_lbl_text
-        self.dir_lbl_text.set(str(self.dir_path))
 
         # file_frame
         self.file_frame = ttk.Labelframe(self.master, text='File to save')
@@ -159,27 +181,52 @@ class Window(ttk.Frame):
         self.file_lbl = ttk.Label(self.file_frame)
         self.file_lbl_text = tk.StringVar()
         self.file_lbl['textvariable'] = self.file_lbl_text
-        self.file_lbl_text.set(str(self.file_path))
 
+        
         # options_frame
         self.options_frame = ttk.Labelframe(self.master,
                                             text='Options to run')
+        self.opt_chk_frame = ttk.Frame(self.options_frame)
+        self.opt_ftype_frame = ttk.Frame(self.options_frame)
+        self.opt_file_frame = ttk.Frame(self.options_frame)
+        self.opt_run_frame = ttk.Frame(self.options_frame)
+        
         self.scan_subfolders = tk.BooleanVar()
-        self.scan_subfolders.set(True)
-        self.scan_subf_chk = ttk.Checkbutton(self.options_frame,
+        self.scan_subf_chk = ttk.Checkbutton(self.opt_chk_frame,
                                 text='Scan subfolders',
                                 variable=self.scan_subfolders, onvalue=True)
         self.include_dirs = tk.BooleanVar()
-        self.include_dirs.set(True)
-        self.incl_dirs_chk = ttk.Checkbutton(self.options_frame,
+        self.incl_dirs_chk = ttk.Checkbutton(self.opt_chk_frame,
                                 text='Include directories',
                                 variable=self.include_dirs, onvalue=True)
-        self.run_btn = ttk.Button(self.options_frame, text='Run',
+        
+        self.sep1 = ttk.Separator(self.options_frame, orient='vertical')
+        self.ftype = tk.StringVar()
+        self.ftype_rbtns = []
+        for typ in FILE_TYPES:
+            rbtn = ttk.Radiobutton(self.opt_ftype_frame, text=typ,
+                                    variable=self.ftype, value=typ)
+                                    # command=self.set_ftype_to_scan)
+            self.ftype_rbtns.append(rbtn)
+        
+        self.sep2 = ttk.Separator(self.options_frame, orient='vertical')
+        self.to_file_lbl = ttk.Label(self.opt_file_frame, text='Output:')
+        self.to_file = tk.StringVar()
+        self.txt_rbtn = ttk.Radiobutton(self.opt_file_frame, text=TXT,
+                                        variable=self.to_file, value=TXT,
+                                        command=self.set_ext)
+        self.htm_rbtn = ttk.Radiobutton(self.opt_file_frame, text=HTM,
+                                        variable=self.to_file, value=HTM,
+                                        command=self.set_ext)
+        
+        self.sep3 = ttk.Separator(self.options_frame, orient='vertical')
+        self.run_btn = ttk.Button(self.opt_run_frame, text='Run',
                                     command=self.run_scan_dir)
-        self.progressbar = ttk.Progressbar(self.options_frame,
+        self.progressbar = ttk.Progressbar(self.opt_run_frame,
                                             orient='horizontal',
                                             length=WINDOW_WIDTH//5,
                                             mode='determinate')
+        
         
         # bottom_frame
         self.bottom_frame = ttk.Frame(self.master)
@@ -196,7 +243,7 @@ class Window(ttk.Frame):
         btn_x = 20
         btn_y = 10
 
-        self.dir_frame.pack(fill='x', padx=frame_x, pady=frame_y)
+        self.dir_frame.pack(fill='x', padx=frame_x, pady=frame_y+10)
         self.choose_dir_btn.pack(side='left', padx=btn_x, pady=btn_y+5)
         self.dir_lbl.pack(side='right', padx=btn_x, pady=btn_y+5)
 
@@ -204,16 +251,57 @@ class Window(ttk.Frame):
         self.save_file_btn.pack(side='left', padx=btn_x, pady=btn_y+5)
         self.file_lbl.pack(side='right', padx=btn_x, pady=btn_y+5)
 
+        
         self.options_frame.pack(fill='x', padx=frame_x, pady=frame_y+10)
-        self.scan_subf_chk.pack(side='left', padx=btn_x)
-        self.incl_dirs_chk.pack(side='left', padx=btn_x)
-        self.run_btn.pack(anchor='e', padx=btn_x, pady=(btn_y, 0))
-        self.progressbar.pack(anchor='e', pady=(0, btn_y))
+        
+        self.opt_chk_frame.pack(side='left')
+        self.scan_subf_chk.pack(padx=btn_x, pady=btn_y/2, anchor='w')
+        self.incl_dirs_chk.pack(padx=btn_x, pady=btn_y/2, anchor='w')
 
+        self.sep1.pack(side='left', fill='y')
+        self.opt_ftype_frame.pack(side='left')
+        self.ftype_rbtns[0].pack(padx=btn_x+10, pady=(btn_y, 0), anchor='w')
+        for rbtn in self.ftype_rbtns[1:-1]:
+            rbtn.pack(padx=btn_x+10, anchor='w')
+        self.ftype_rbtns[-1].pack(padx=btn_x+10, pady=(0, btn_y), anchor='w')
+        
+        self.sep2.pack(side='left', fill='y')
+        self.opt_file_frame.pack(side='left')
+        self.to_file_lbl.pack(padx=btn_x+10, pady=btn_y/2)
+        self.txt_rbtn.pack(padx=btn_x+10, pady=btn_y/2, anchor='w')
+        self.htm_rbtn.pack(padx=btn_x+10, pady=btn_y/2, anchor='w')
+
+        self.sep3.pack(side='left', fill='y')
+        self.opt_run_frame.pack(side='left')
+        self.run_btn.pack(padx=3*btn_x, pady=(btn_y, 0))
+        self.progressbar.pack(pady=(0, btn_y))
+
+        
         self.bottom_frame.pack(side='bottom', fill='x',
                                 padx=frame_x, pady=frame_y)
         self.about_btn.pack(side='left', padx=btn_x, pady=btn_y)
         self.quit_btn.pack(side='right', padx=btn_x, pady=btn_y)
+    
+    def set_defaults(self):
+        """Set default values for widgets."""
+        self.file_lbl_text.set(str(self.file_path))
+        self.dir_lbl_text.set(str(self.dir_path))
+
+        self.scan_subfolders.set(True)
+        self.include_dirs.set(True)
+        self.ftype.set(ALL)
+        for rbtn in self.ftype_rbtns[1:]:
+            rbtn.config(state='disabled')
+        self.to_file.set(TXT)
+        self.htm_rbtn.config(state='disabled')
+    
+    # def set_ftype_to_scan(self):
+    #     self.ftype.get()
+    
+    def set_ext(self):
+        """Set extension of file_path and its label."""
+        self.file_path = self.file_path.with_suffix(self.to_file.get())
+        self.file_lbl_text.set(str(self.file_path))
     
     def open_dir_dlg(self):
         """Open dialog window for choosing a directory to scan."""
@@ -226,13 +314,20 @@ class Window(ttk.Frame):
     def save_file_dlg(self):
         """Open dialog window which allows to choose a path for saving."""
 
-        fname = filedialog.asksaveasfilename(defaultextension='.txt',
-                    filetypes=[('Text files', '.txt'), ('All files', '.*')],
-                    initialdir=self.file_path.parent,
-                    initialfile=self.file_path.stem)
+        fname = filedialog.asksaveasfilename(defaultextension=TXT,
+                            filetypes=[('Text File', TXT), ('Web Page', HTM)],
+                            initialdir=self.file_path.parent,
+                            initialfile=self.file_path.stem)
         if fname:
             self.file_path = Path(fname)
-            self.file_lbl_text.set(fname)
+            ext = self.file_path.suffix
+            if ext in [TXT, HTM]:
+                self.file_lbl_text.set(fname)
+                self.to_file.set(ext)
+            else:
+                self.file_path = self.file_path.with_suffix(TXT)
+                self.file_lbl_text.set(str(self.file_path))
+                self.to_file.set(TXT)
     
     def run_scan_dir(self):
         """Start new thread for showing animation of progressbar."""
@@ -293,7 +388,7 @@ def main(argv):
             # powershell -command "iex \"tree d:\movies /F\" > \"d:\123.txt\""
             if len(argv) > 2:
                 print('Scanning...\n')
-                file_path = Path(argv[2]).with_suffix('.txt')
+                file_path = Path(argv[2]).with_suffix(TXT)
                 with file_path.open('w', encoding='utf-8') as fhand:
                     print(*scan_directory(dir_path, console=True),
                             sep='\n', file=fhand)
@@ -313,9 +408,9 @@ if __name__ == "__main__":
 
 
 # TODO:
-# option->movies: if path.suffix in ['.mp4', '.mkv', '.avi']:
-# option-> music,photo,text/books, code     -->>separator
-# .txt, .html (tree)
+# make padx,pady unified
+# option-> music,photo,text/books, code
+# .htm -> (tree)
 
 # (D:\Programming\Study\Git)add instruction how to add and 
 # add screen: ![#2](screenshots/example-2.png?raw=true)
