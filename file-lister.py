@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-"""Script scans for files and subfolders in a directory and writes to file 
-a list of data structured by hierarchy.
+"""Script scans for files and subfolders in a directory and writes to
+file a list of data structured by hierarchy.
 Requires Python 3.4 for pathlib module.
 """
 
@@ -8,7 +8,7 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -71,6 +71,7 @@ WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
 
 DEF_FNAME = 'FileLister'
+LBL_TEXT_MAX = 75
 
 ALL = 'All'
 MOVIES = 'Movies'
@@ -149,7 +150,7 @@ def scan_directory(dir_path, console=False):
 
 
 class Window(ttk.Frame):
-    """Class is used to create GUI for scanning files in directories."""
+    """Class is used to create GUI for scanning files in directory."""
 
     def __init__(self, master=None):
         """Construct a Ttk Frame."""
@@ -170,17 +171,17 @@ class Window(ttk.Frame):
         self.dir_frame = ttk.Labelframe(self.master, text='Directory to scan')
         self.choose_dir_btn = ttk.Button(self.dir_frame, text='Open...',
                                     command=self.open_dir_dlg)
-        self.dir_lbl = ttk.Label(self.dir_frame)
         self.dir_lbl_text = tk.StringVar()
-        self.dir_lbl['textvariable'] = self.dir_lbl_text
+        self.dir_lbl = ttk.Label(self.dir_frame,
+                                textvariable=self.dir_lbl_text)
 
         # file_frame
         self.file_frame = ttk.Labelframe(self.master, text='File to save')
         self.save_file_btn = ttk.Button(self.file_frame, text='Save as...',
                                     command=self.save_file_dlg)
-        self.file_lbl = ttk.Label(self.file_frame)
         self.file_lbl_text = tk.StringVar()
-        self.file_lbl['textvariable'] = self.file_lbl_text
+        self.file_lbl = ttk.Label(self.file_frame,
+                                textvariable=self.file_lbl_text)
 
         
         # options_frame
@@ -237,26 +238,24 @@ class Window(ttk.Frame):
 
     def arrange_widgets(self):
         """Organaze and show widgets."""
-
-        frame_x = 20
-        frame_y = 5
+        
         btn_x = 20
         btn_y = 10
 
-        self.dir_frame.pack(fill='x', padx=frame_x, pady=frame_y+10)
-        self.choose_dir_btn.pack(side='left', padx=btn_x, pady=btn_y+5)
-        self.dir_lbl.pack(side='right', padx=btn_x, pady=btn_y+5)
+        self.dir_frame.pack(fill='x', padx=btn_x, pady=btn_y)
+        self.choose_dir_btn.pack(side='left', padx=10, pady=2*btn_y)
+        self.dir_lbl.pack(side='right', padx=10, pady=2*btn_y)
 
-        self.file_frame.pack(fill='x', padx=frame_x, pady=frame_y)
-        self.save_file_btn.pack(side='left', padx=btn_x, pady=btn_y+5)
-        self.file_lbl.pack(side='right', padx=btn_x, pady=btn_y+5)
+        self.file_frame.pack(fill='x', padx=btn_x, pady=btn_y)
+        self.save_file_btn.pack(side='left', padx=10, pady=2*btn_y)
+        self.file_lbl.pack(side='right', padx=10, pady=2*btn_y)
 
         
-        self.options_frame.pack(fill='x', padx=frame_x, pady=frame_y+10)
+        self.options_frame.pack(fill='x', padx=btn_x, pady=2*btn_y)
         
         self.opt_chk_frame.pack(side='left')
-        self.scan_subf_chk.pack(padx=btn_x, pady=btn_y/2, anchor='w')
-        self.incl_dirs_chk.pack(padx=btn_x, pady=btn_y/2, anchor='w')
+        self.scan_subf_chk.pack(padx=btn_x, pady=btn_y, anchor='w')
+        self.incl_dirs_chk.pack(padx=btn_x, pady=btn_y, anchor='w')
 
         self.sep1.pack(side='left', fill='y')
         self.opt_ftype_frame.pack(side='left')
@@ -267,9 +266,9 @@ class Window(ttk.Frame):
         
         self.sep2.pack(side='left', fill='y')
         self.opt_file_frame.pack(side='left')
-        self.to_file_lbl.pack(padx=btn_x+10, pady=btn_y/2)
-        self.txt_rbtn.pack(padx=btn_x+10, pady=btn_y/2, anchor='w')
-        self.htm_rbtn.pack(padx=btn_x+10, pady=btn_y/2, anchor='w')
+        self.to_file_lbl.pack(padx=btn_x+10, pady=btn_y)
+        self.txt_rbtn.pack(padx=btn_x+10, pady=btn_y, anchor='w')
+        self.htm_rbtn.pack(padx=btn_x+10, pady=btn_y, anchor='w')
 
         self.sep3.pack(side='left', fill='y')
         self.opt_run_frame.pack(side='left')
@@ -278,14 +277,20 @@ class Window(ttk.Frame):
 
         
         self.bottom_frame.pack(side='bottom', fill='x',
-                                padx=frame_x, pady=frame_y)
+                                padx=btn_x, pady=btn_y)
         self.about_btn.pack(side='left', padx=btn_x, pady=btn_y)
         self.quit_btn.pack(side='right', padx=btn_x, pady=btn_y)
     
+    def cut_lbl_text(self, text):
+        """Cut the left side of text to make the right side visible."""
+        if len(text) > LBL_TEXT_MAX:
+            text = '... ' + text[-LBL_TEXT_MAX :]
+        return text
+    
     def set_defaults(self):
         """Set default values for widgets."""
-        self.file_lbl_text.set(str(self.file_path))
-        self.dir_lbl_text.set(str(self.dir_path))
+        self.file_lbl_text.set(self.cut_lbl_text(str(self.file_path)))
+        self.dir_lbl_text.set(self.cut_lbl_text(str(self.dir_path)))
 
         self.scan_subfolders.set(True)
         self.include_dirs.set(True)
@@ -309,10 +314,10 @@ class Window(ttk.Frame):
         dir_name = filedialog.askdirectory(initialdir=str(self.dir_path))
         if dir_name:
             self.dir_path = Path(dir_name)
-            self.dir_lbl_text.set(dir_name)
+            self.dir_lbl_text.set(self.cut_lbl_text(dir_name))
 
     def save_file_dlg(self):
-        """Open dialog window which allows to choose a path for saving."""
+        """Open dialog window to choose a path for saving."""
 
         fname = filedialog.asksaveasfilename(defaultextension=TXT,
                             filetypes=[('Text File', TXT), ('Web Page', HTM)],
@@ -322,11 +327,11 @@ class Window(ttk.Frame):
             self.file_path = Path(fname)
             ext = self.file_path.suffix
             if ext in [TXT, HTM]:
-                self.file_lbl_text.set(fname)
+                self.file_lbl_text.set(self.cut_lbl_text(fname))
                 self.to_file.set(ext)
             else:
                 self.file_path = self.file_path.with_suffix(TXT)
-                self.file_lbl_text.set(str(self.file_path))
+                self.file_lbl_text.set(self.cut_lbl_text(str(self.file_path)))
                 self.to_file.set(TXT)
     
     def run_scan_dir(self):
@@ -335,7 +340,7 @@ class Window(ttk.Frame):
         threading.Thread(target=self.scan_dir_thread, daemon=True).start()
     
     def scan_dir_thread(self):
-        """Write scanning results of selected directory to a given file."""
+        """Write scanning results of selected directory to a file."""
         num_items = 0
         for item in self.dir_path.rglob('*'):
             num_items += 1
@@ -359,11 +364,11 @@ class Window(ttk.Frame):
 
 
 def main(argv):
-    """Uses GUI class or console to scan folders depending on arguments."""
+    """Uses GUI or console to scan folders depending on arguments."""
     # Run GUI.
     if len(argv) == 1:
         root = tk.Tk()
-        # Pass a toplevel widget of tkinter as main window of the application.
+        # Pass a toplevel widget as main window of the application.
         app = Window(root)
         app.master.title('FileLister ' + __version__[:-2])
         # Set the icon (must keep a reference from destroying by GC).
@@ -383,7 +388,7 @@ def main(argv):
         if Path(argv[1]).is_dir():
             dir_path = Path(argv[1])
 
-            # Print to given file.
+            # Print to a given file.
             # In Windows cmd:
             # powershell -command "iex \"tree d:\movies /F\" > \"d:\123.txt\""
             if len(argv) > 2:
@@ -408,9 +413,11 @@ if __name__ == "__main__":
 
 
 # TODO:
-# make padx,pady unified
-# option-> music,photo,text/books, code
+# set_ftype_to_scan(self):
+# Label 'Complete!'
+# scan pattern
 # .htm -> (tree)
 
 # (D:\Programming\Study\Git)add instruction how to add and 
 # add screen: ![#2](screenshots/example-2.png?raw=true)
+# "Production"
