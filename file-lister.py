@@ -8,7 +8,7 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.1.4"
+__version__ = "1.1.5"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
@@ -122,8 +122,8 @@ def dir_size(path, subdirs, include_dir, types):
     total += sum(p.stat().st_size for p in merged_glob(path, subdirs, types))
     return total
 
-def scan_directory(dir_path, subdirs=True, include_dir=True, types=ALL,
-                                                        console=False):
+def scan_directory(dir_path, subdirs=True, include_dir=True, is_indent=True,
+                                                types=ALL, console=False):
     """Return strings of files and directories in tree-like manner.
     Recursively yield entries in dir_path if subdirs is True.
     """
@@ -140,7 +140,7 @@ def scan_directory(dir_path, subdirs=True, include_dir=True, types=ALL,
         for path in sorted(merged_glob(dir_path, subdirs, types)):
             depth = len(path.relative_to(dir_path).parts)
             indent = ' ' * 5 * (depth-1)
-            name = indent + path.name
+            name = indent * is_indent + path.name
             v_ind = '\n' if depth != prev_depth and not path.is_dir() else ''
             dot1 = '-'
             dot2 = ' '
@@ -209,14 +209,19 @@ class Window(ttk.Frame):
         self.opt_file_frame = ttk.Frame(self.options_frame)
         self.opt_run_frame = ttk.Frame(self.options_frame)
         
-        self.scan_subfolders = tk.BooleanVar()
+        self.scan_subdirs = tk.BooleanVar()
         self.scan_subf_chk = ttk.Checkbutton(self.opt_chk_frame,
                                 text='Scan subfolders',
-                                variable=self.scan_subfolders, onvalue=True)
+                                variable=self.scan_subdirs, onvalue=True,
+                                command=self.set_indentation)
         self.include_dir = tk.BooleanVar()
         self.incl_dirs_chk = ttk.Checkbutton(self.opt_chk_frame,
                                 text='Include directories',
                                 variable=self.include_dir, onvalue=True)
+        self.indent_levels = tk.BooleanVar()
+        self.ind_levels_chk = ttk.Checkbutton(self.opt_chk_frame,
+                                text='Indent levels',
+                                variable=self.indent_levels, onvalue=True)
         
         self.sep1 = ttk.Separator(self.options_frame, orient='vertical')
         self.ftype = tk.StringVar()
@@ -274,6 +279,7 @@ class Window(ttk.Frame):
         self.opt_chk_frame.pack(side='left')
         self.scan_subf_chk.pack(padx=btn_x, pady=btn_y, anchor='w')
         self.incl_dirs_chk.pack(padx=btn_x, pady=btn_y, anchor='w')
+        self.ind_levels_chk.pack(padx=btn_x, pady=btn_y, anchor='w')
 
         self.sep1.pack(side='left', fill='y')
         self.opt_ftype_frame.pack(side='left')
@@ -310,8 +316,9 @@ class Window(ttk.Frame):
         self.file_lbl_text.set(self.cut_lbl_text(str(self.file_path)))
         self.dir_lbl_text.set(self.cut_lbl_text(str(self.dir_path)))
 
-        self.scan_subfolders.set(True)
+        self.scan_subdirs.set(True)
         self.include_dir.set(True)
+        self.indent_levels.set(True)
         self.ftype.set(ALL)
         self.to_file.set(TXT)
         self.htm_rbtn.config(state='disabled')
@@ -326,9 +333,14 @@ class Window(ttk.Frame):
         self.incl_dirs_chk.config(state=incl_dirs_state)
     
     def set_ext(self):
-        """Set extension of file_path and its label."""
+        """Update extension of file_path and its label."""
         self.file_path = self.file_path.with_suffix(self.to_file.get())
         self.file_lbl_text.set(str(self.file_path))
+    
+    def set_indentation(self):
+        """Enable or disable indentation basing on subdirs var."""
+        ind_levels_state = 'normal' if self.scan_subdirs.get() else 'disabled'
+        self.ind_levels_chk.config(state=ind_levels_state)
     
     def open_dir_dlg(self):
         """Open dialog window for choosing a directory to scan."""
@@ -366,7 +378,7 @@ class Window(ttk.Frame):
     def scan_dir_thread(self):
         """Write scanning results of selected directory to a file."""
         num_items = 0
-        for item in merged_glob(self.dir_path, self.scan_subfolders.get(),
+        for item in merged_glob(self.dir_path, self.scan_subdirs.get(),
                                                         self.ftype.get()):
             num_items += 1
         
@@ -374,8 +386,9 @@ class Window(ttk.Frame):
         self.progressbar.start()
         with open(str(self.file_path), 'w', encoding='utf-8') as fhand:
             found_items = scan_directory(self.dir_path,
-                                        subdirs=self.scan_subfolders.get(),
+                                        subdirs=self.scan_subdirs.get(),
                                         include_dir=self.include_dir.get(),
+                                        is_indent=self.indent_levels.get(),
                                         types=self.ftype.get())
             for item in found_items:
                 print(item, sep='\n', file=fhand)
@@ -444,8 +457,7 @@ if __name__ == "__main__":
 
 
 # TODO:
-# indentation checkbutton
-# .htm -> (tree)
+# .htm -> (tree) -> 1.2
 
 # (D:\Programming\Study\Git)add instruction how to add and 
 # add screen: ![#2](screenshots/example-2.png?raw=true)
