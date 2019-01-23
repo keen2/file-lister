@@ -8,15 +8,15 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
 
 
-usage = '\nNote, usage: %s dir_path file_path\n'
-usage += 'Shortly for current directory: %s . file_name\n'
-usage += 'Print to the console if no file_path is given: %s .\n'
+usage = ('\nNote, usage: %s dir_path file_path\n'
+         'Shortly for current directory: %s . file_name\n'
+         'Print to the console if no file_path is given: %s .\n')
 
 
 # ICON_GIF = 'documents-icon24.png'
@@ -104,37 +104,54 @@ def size2str(num, suffix='B'):
         num /= 1024.0
     return '>1000 TB'
 
-def dir_size(dir_path):
-    """Return size of a directory in bytes."""
-    return sum(path.stat().st_size for path in dir_path.rglob('*'))
+def merged_glob(path, subdirs, types):
+    """Yield all files/directories matching the given pattern."""
+    pattern = '**/' * subdirs + '*.' * (types!=ALL)
+    patterns = (pattern + ext for ext in FILE_TYPES[types])
+    yield from (p for i in patterns for p in path.glob(i))
 
-def scan_directory(dir_path, console=False):
+def dir_size(path, subdirs, include_dir, types):
+    """Return size of a directory in bytes for a given file types."""
+    total = 0
+    # directories
+    if not subdirs and include_dir:
+        for item in (x for x in path.iterdir() if x.is_dir()):
+            for p in merged_glob(item, True, types):
+                total += p.stat().st_size
+    # files
+    total += sum(p.stat().st_size for p in merged_glob(path, subdirs, types))
+    return total
+
+def scan_directory(dir_path, subdirs=True, include_dir=True, types=ALL,
+                                                        console=False):
     """Return strings of files and directories in tree-like manner.
-    Recursively yield all entries in dir_path Path object with rglob().
+    Recursively yield entries in dir_path if subdirs is True.
     """
     dir_path_str = str(dir_path.resolve())
     str_date = date.today().strftime('%d.%m.%Y')
-    header = 'File listing on {} for:\n'.format(str_date)
+    header = 'Listing on {} for {} files in:\n'.format(str_date, types)
     stars = '*' * len(dir_path_str) + '\n'
     try:
-        size = 'Size: ' + size2str(dir_size(dir_path)) + '\n\n'
+        size = 'Size of {} files: {}\n\n'.format(types,
+                    size2str(dir_size(dir_path, subdirs, include_dir, types)))
         yield header + stars + dir_path_str + '\n' + stars + size
 
         prev_depth = 0
-        for path in sorted(dir_path.rglob('*')):
+        for path in sorted(merged_glob(dir_path, subdirs, types)):
             depth = len(path.relative_to(dir_path).parts)
             indent = ' ' * 5 * (depth-1)
             name = indent + path.name
             v_ind = '\n' if depth != prev_depth and not path.is_dir() else ''
             dot1 = '-'
             dot2 = ' '
+            prev_depth = depth
             if path.is_dir():
-                size = size2str(dir_size(path))
+                if not include_dir: continue
+                size = size2str(dir_size(path, subdirs, include_dir, types))
                 data = '\n{:{fill}<130}[{}]'.format(name, size, fill=dot1)
             else:
                 size = size2str(path.stat().st_size)
                 data = '{:{fill}<120}{}'.format(name, size, fill=dot2)
-            prev_depth = depth
             yield v_ind + data
     except MemoryError as m_err:
         tip = '\n\nTry folder with less depth or less small files.'
@@ -196,18 +213,18 @@ class Window(ttk.Frame):
         self.scan_subf_chk = ttk.Checkbutton(self.opt_chk_frame,
                                 text='Scan subfolders',
                                 variable=self.scan_subfolders, onvalue=True)
-        self.include_dirs = tk.BooleanVar()
+        self.include_dir = tk.BooleanVar()
         self.incl_dirs_chk = ttk.Checkbutton(self.opt_chk_frame,
                                 text='Include directories',
-                                variable=self.include_dirs, onvalue=True)
+                                variable=self.include_dir, onvalue=True)
         
         self.sep1 = ttk.Separator(self.options_frame, orient='vertical')
         self.ftype = tk.StringVar()
         self.ftype_rbtns = []
         for typ in FILE_TYPES:
             rbtn = ttk.Radiobutton(self.opt_ftype_frame, text=typ,
-                                    variable=self.ftype, value=typ)
-                                    # command=self.set_ftype_to_scan)
+                                    variable=self.ftype, value=typ,
+                                    command=self.set_ftype_to_scan)
             self.ftype_rbtns.append(rbtn)
         
         self.sep2 = ttk.Separator(self.options_frame, orient='vertical')
@@ -227,6 +244,7 @@ class Window(ttk.Frame):
                                             orient='horizontal',
                                             length=WINDOW_WIDTH//5,
                                             mode='determinate')
+        self.complete_txt = ttk.Label(self.opt_run_frame, text='Complete!')
         
         
         # bottom_frame
@@ -272,8 +290,8 @@ class Window(ttk.Frame):
 
         self.sep3.pack(side='left', fill='y')
         self.opt_run_frame.pack(side='left')
-        self.run_btn.pack(padx=3*btn_x, pady=(btn_y, 0))
-        self.progressbar.pack(pady=(0, btn_y))
+        self.run_btn.pack(padx=4*btn_x, pady=(btn_y, 0))
+        self.progressbar.pack()
 
         
         self.bottom_frame.pack(side='bottom', fill='x',
@@ -293,15 +311,19 @@ class Window(ttk.Frame):
         self.dir_lbl_text.set(self.cut_lbl_text(str(self.dir_path)))
 
         self.scan_subfolders.set(True)
-        self.include_dirs.set(True)
+        self.include_dir.set(True)
         self.ftype.set(ALL)
-        for rbtn in self.ftype_rbtns[1:]:
-            rbtn.config(state='disabled')
         self.to_file.set(TXT)
         self.htm_rbtn.config(state='disabled')
     
-    # def set_ftype_to_scan(self):
-    #     self.ftype.get()
+    def set_ftype_to_scan(self):
+        """Set a pattern for scanning. When ftype is not All
+        include_dir will be disabled due to input pattern of glob().
+        """
+        is_all_types = self.ftype.get() == ALL
+        self.include_dir.set(is_all_types)
+        incl_dirs_state = 'normal' if is_all_types else 'disabled'
+        self.incl_dirs_chk.config(state=incl_dirs_state)
     
     def set_ext(self):
         """Set extension of file_path and its label."""
@@ -337,23 +359,31 @@ class Window(ttk.Frame):
     def run_scan_dir(self):
         """Start new thread for showing animation of progressbar."""
         self.run_btn.state(['disabled'])
+        if self.complete_txt.winfo_manager():
+            self.complete_txt.pack_forget()
         threading.Thread(target=self.scan_dir_thread, daemon=True).start()
     
     def scan_dir_thread(self):
         """Write scanning results of selected directory to a file."""
         num_items = 0
-        for item in self.dir_path.rglob('*'):
+        for item in merged_glob(self.dir_path, self.scan_subfolders.get(),
+                                                        self.ftype.get()):
             num_items += 1
         
-        self.progressbar["maximum"] = num_items
+        self.progressbar["maximum"] = num_items if num_items > 0 else 100
         self.progressbar.start()
-        with self.file_path.open('w', encoding='utf-8') as fhand:
-            for item in scan_directory(self.dir_path):
+        with open(str(self.file_path), 'w', encoding='utf-8') as fhand:
+            found_items = scan_directory(self.dir_path,
+                                        subdirs=self.scan_subfolders.get(),
+                                        include_dir=self.include_dir.get(),
+                                        types=self.ftype.get())
+            for item in found_items:
                 print(item, sep='\n', file=fhand)
                 self.progressbar.step()
         self.run_btn.state(['!disabled'])
         self.progressbar.stop()
-        self.progressbar["value"] = num_items
+        self.progressbar["value"] = self.progressbar["maximum"]
+        self.complete_txt.pack()
 
     def about_dlg(self):
         """Open window with info about the application."""
@@ -394,7 +424,8 @@ def main(argv):
             if len(argv) > 2:
                 print('Scanning...\n')
                 file_path = Path(argv[2]).with_suffix(TXT)
-                with file_path.open('w', encoding='utf-8') as fhand:
+                # open() for Python 3.4, 3.5:
+                with open(str(file_path), 'w', encoding='utf-8') as fhand:
                     print(*scan_directory(dir_path, console=True),
                             sep='\n', file=fhand)
                 print('\n\nData is written to: ' + file_path.name)
@@ -413,9 +444,7 @@ if __name__ == "__main__":
 
 
 # TODO:
-# set_ftype_to_scan(self):
-# Label 'Complete!'
-# scan pattern
+# indentation checkbutton
 # .htm -> (tree)
 
 # (D:\Programming\Study\Git)add instruction how to add and 
