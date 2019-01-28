@@ -8,15 +8,24 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.1.5"
+__version__ = "1.1.6"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
 __status__ = "Prototype"
 
 
-usage = ('\nNote, usage: %s dir_path file_path\n'
-         'Shortly for current directory: %s . file_name\n'
-         'Print to the console if no file_path is given: %s .\n')
+import tkinter as tk
+# Explicitly import some submodules:
+from tkinter import ttk
+from tkinter import filedialog
+from tkinter import messagebox
+
+# For low-level path manipulation on strings: import os.
+# New module offers classes representing filesystem paths.
+from pathlib import Path
+
+from datetime import date
+from threading import Thread
 
 
 # ICON_GIF = 'documents-icon24.png'
@@ -51,20 +60,6 @@ bcJ4uY2XBrzBWSvbJ5vuUhXDeQfT0z6d1nulLH81A3bctIsgD3XCa71oHDg/FBZt0SA7yF3fg2yv
 CyXVpdAeL++ft/b8U92Dqg2LRGumVNlL6ipwqvxEQRg9OHT6BkOfKJf5wj989uwVd7csu/X+v4fr
 vDwfoGHwAAAAAElFTkSuQmCC
 '''
-
-
-import tkinter as tk
-# Explicitly import some submodules:
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter import messagebox
-
-# For low-level path manipulation on strings: import os.
-# New module offers classes representing filesystem paths.
-from pathlib import Path
-
-from datetime import date
-import threading
 
 # 4 x 3
 WINDOW_WIDTH = 640
@@ -122,7 +117,7 @@ def dir_size(path, subdirs, include_dir, types):
     total += sum(p.stat().st_size for p in merged_glob(path, subdirs, types))
     return total
 
-def scan_directory(dir_path, subdirs=True, include_dir=True, is_indent=True,
+def scan_directory(dir_path, subdirs, include_dir, is_indent,
                                                 types=ALL, console=False):
     """Return strings of files and directories in tree-like manner.
     Recursively yield entries in dir_path if subdirs is True.
@@ -373,7 +368,7 @@ class Window(ttk.Frame):
         self.run_btn.state(['disabled'])
         if self.complete_txt.winfo_manager():
             self.complete_txt.pack_forget()
-        threading.Thread(target=self.scan_dir_thread, daemon=True).start()
+        Thread(target=self.scan_dir_thread, daemon=True).start()
     
     def scan_dir_thread(self):
         """Write scanning results of selected directory to a file."""
@@ -386,9 +381,9 @@ class Window(ttk.Frame):
         self.progressbar.start()
         with open(str(self.file_path), 'w', encoding='utf-8') as fhand:
             found_items = scan_directory(self.dir_path,
-                                        subdirs=self.scan_subdirs.get(),
-                                        include_dir=self.include_dir.get(),
-                                        is_indent=self.indent_levels.get(),
+                                        self.scan_subdirs.get(),
+                                        self.include_dir.get(),
+                                        self.indent_levels.get(),
                                         types=self.ftype.get())
             for item in found_items:
                 print(item, sep='\n', file=fhand)
@@ -400,9 +395,9 @@ class Window(ttk.Frame):
 
     def about_dlg(self):
         """Open window with info about the application."""
-
-        msg = '{}\nversion: {}\n\n{} by {}'.format(DEF_FNAME,
-                        __version__, __copyright__, __author__)
+        git_url = 'https://github.com/keen2/file-lister'
+        msg = '{}\nversion: {}\n{}\n\n{} by {}'.format(DEF_FNAME,
+                        __version__, git_url, __copyright__, __author__)
         messagebox.showinfo('About ' + DEF_FNAME, msg)
 
 
@@ -427,27 +422,43 @@ def main(argv):
         app.master.mainloop()
     
     # Use console.
-    elif len(argv) > 1:
-        if Path(argv[1]).is_dir():
-            dir_path = Path(argv[1])
+    else:
+        import argparse
 
+        parser = argparse.ArgumentParser(
+                    description='Print list of files of a given directory.')
+        parser.add_argument('dirpath', help='Directory path to scan')
+        parser.add_argument('-f', '--filepath',
+                            help='File path to save scanning results')
+        parser.add_argument('-s', '--subdirs', action='store_false',
+                            help='Disable subdirectories scanning')
+        parser.add_argument('-d', '--includedirs', action='store_false',
+                            help='Disable of printing directory info')
+        parser.add_argument('-i', '--indent', action='store_false',
+                            help='Disable depth indentation')
+        args = parser.parse_args()
+        
+        if Path(args.dirpath).is_dir():
+
+            found_files = scan_directory(Path(args.dirpath), args.subdirs,
+                                        args.includedirs, args.indent,
+                                        console=True)
             # Print to a given file.
             # In Windows cmd:
-            # powershell -command "iex \"tree d:\movies /F\" > \"d:\123.txt\""
-            if len(argv) > 2:
-                print('Scanning...\n')
-                file_path = Path(argv[2]).with_suffix(TXT)
+            # powershell -command "iex \"tree d:\m /F\" > \"d:\t.txt\""
+            if args.filepath:
+                print('\nScanning...')
+                file_path = Path(args.filepath).with_suffix(TXT)
                 # open() for Python 3.4, 3.5:
                 with open(str(file_path), 'w', encoding='utf-8') as fhand:
-                    print(*scan_directory(dir_path, console=True),
-                            sep='\n', file=fhand)
-                print('\n\nData is written to: ' + file_path.name)
-            # Print to console if no file_path entered.
+                    print(*found_files, sep='\n', file=fhand)
+                print('\nData is written to: ' + file_path.name)
+            # Print to console if no filepath entered.
             else:
-                print(*scan_directory(dir_path, console=True), sep='\n')
+                print(*found_files, sep='\n')
                 # In Windows cmd: tree d:\movies /F
         else:
-            print('Invalid directory path!!!\n', usage.replace('%s', argv[0]))
+            print('\nThere is no directory with path:', args.dirpath)
 
 
 if __name__ == "__main__":
