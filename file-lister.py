@@ -8,10 +8,10 @@ __author__ = "Andrei Ermishin"
 __copyright__ = "Copyright (c) 2019"
 __credits__ = []
 __license__ = "MIT"
-__version__ = "1.1.6"
+__version__ = "1.2.0"
 __maintainer__ = "Andrei Ermishin"
 __email__ = "andrey.yermishin@gmail.com"
-__status__ = "Prototype"
+__status__ = "Production"
 
 
 import tkinter as tk
@@ -28,7 +28,7 @@ from datetime import date
 from threading import Thread
 
 
-# ICON_GIF = 'documents-icon24.png'
+# ICON_GIF = 'images/documents-icon24.png'
 # # This will convert a GIF/PNG to python source code.
 # import base64
 # with open(ICON_GIF, 'rb') as f_icon:
@@ -82,13 +82,39 @@ FILE_TYPES = {
     ALL:    ['*'],
     MOVIES: ['3GP', 'ASF', 'AVI', 'FLV', 'M4P', 'M4V', 'MKV', 'MOV', 'MPG',
              'MPEG', 'MP4', 'MTS', 'M2TS', 'QT', 'TS', 'VOB', 'WEBM', 'WMV'],
-    MUSIC:  ['AAC', 'DTS', 'M4A', 'MP3', 'WAV', 'WMA'],
+    MUSIC:  ['AAC', 'DTS', 'FLAC', 'M4A', 'MKA', 'MP3', 'WAV', 'WMA'],
     PHOTO:  ['BMP', 'GIF', 'JPG', 'JPEG', 'PNG', 'RAW', 'SVG'],
     BOOKS:  ['DJVU', 'DOC', 'DOCX', 'EPUB', 'FB2', 'ODT', 'PDF',
              'RTF', 'TIFF', 'TXT'],
     CODE:   ['BAT', 'C', 'CC', 'CPP', 'CS', 'GO', 'H', 'HH', 'HPP', 'IPYNB',
              'JAVA', 'JS', 'M', 'PHP', 'PL', 'PY', 'R', 'RB', 'SWIFT']
 }
+
+HTML_START = '''<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>{}</title>
+    </head>
+    <body>
+        <table border="1" style="border-collapse:collapse">
+        <caption>
+            <pre>
+{}
+            </pre>
+        </caption>'''
+
+HTML_ROW = '''            <tr{color}>
+                <td><pre>{name}</pre></td>
+                <td><pre>{f_size}</pre></td>
+                <td><pre>{d_size}</pre></td>
+            </tr>'''
+
+HTML_DIR_COLOR = ' style="background-color:lightsteelblue"'
+
+HTML_END = '''        </table>
+    </body>
+</html>'''
 
 
 def size2str(num, suffix='B'):
@@ -117,19 +143,25 @@ def dir_size(path, subdirs, include_dir, types):
     total += sum(p.stat().st_size for p in merged_glob(path, subdirs, types))
     return total
 
-def scan_directory(dir_path, subdirs, include_dir, is_indent,
+def scan_directory(dir_path, subdirs, include_dir, is_indent, ext=TXT,
                                                 types=ALL, console=False):
     """Return strings of files and directories in tree-like manner.
     Recursively yield entries in dir_path if subdirs is True.
     """
+    is_html = ext == HTM
+
     dir_path_str = str(dir_path.resolve())
     str_date = date.today().strftime('%d.%m.%Y')
     header = 'Listing on {} for {} files in:\n'.format(str_date, types)
     stars = '*' * len(dir_path_str) + '\n'
     try:
-        size = 'Size of {} files: {}\n\n'.format(types,
+        size = 'Size of {} files: {}'.format(types,
                     size2str(dir_size(dir_path, subdirs, include_dir, types)))
-        yield header + stars + dir_path_str + '\n' + stars + size
+        caption = header + stars + dir_path_str + '\n' + stars + size
+        if is_html:
+            yield HTML_START.format('Listing in ' + dir_path_str, caption)
+        else:
+            yield caption + '\n\n'
 
         prev_depth = 0
         for path in sorted(merged_glob(dir_path, subdirs, types)):
@@ -143,13 +175,21 @@ def scan_directory(dir_path, subdirs, include_dir, is_indent,
             if path.is_dir():
                 if not include_dir: continue
                 size = size2str(dir_size(path, subdirs, include_dir, types))
-                data = '\n{:{fill}<130}[{}]'.format(name, size, fill=dot1)
+                if is_html:
+                    data = HTML_ROW.format(name=name, color=HTML_DIR_COLOR,
+                                                    f_size='', d_size=size)
+                else:
+                    data = '\n{:{fill}<130}[{}]'.format(name, size, fill=dot1)
             else:
                 size = size2str(path.stat().st_size)
-                data = '{:{fill}<120}{}'.format(name, size, fill=dot2)
-            yield v_ind + data
+                if is_html:
+                    data = HTML_ROW.format(name=name, color='',
+                                                    f_size=size, d_size='')
+                else:
+                    data = '{:{fill}<120}{}'.format(name, size, fill=dot2)
+            yield v_ind * (not is_html) + data
     except MemoryError as m_err:
-        tip = '\n\nTry folder with less depth or less small files.'
+        tip = '\n\nTry a folder with less depth or less small files.'
         if not console:
             messagebox.showerror(m_err.__class__.__name__, str(m_err) + tip)
         else:
@@ -316,7 +356,6 @@ class Window(ttk.Frame):
         self.indent_levels.set(True)
         self.ftype.set(ALL)
         self.to_file.set(TXT)
-        self.htm_rbtn.config(state='disabled')
     
     def set_ftype_to_scan(self):
         """Set a pattern for scanning. When ftype is not All
@@ -384,10 +423,14 @@ class Window(ttk.Frame):
                                         self.scan_subdirs.get(),
                                         self.include_dir.get(),
                                         self.indent_levels.get(),
+                                        ext=self.to_file.get(),
                                         types=self.ftype.get())
             for item in found_items:
                 print(item, sep='\n', file=fhand)
                 self.progressbar.step()
+            if self.to_file.get() == HTM:
+                print(HTML_END, file=fhand)
+        
         self.run_btn.state(['!disabled'])
         self.progressbar.stop()
         self.progressbar["value"] = self.progressbar["maximum"]
@@ -465,11 +508,3 @@ if __name__ == "__main__":
     import sys
 
     main(sys.argv)
-
-
-# TODO:
-# .htm -> (tree) -> 1.2
-
-# (D:\Programming\Study\Git)add instruction how to add and 
-# add screen: ![#2](screenshots/example-2.png?raw=true)
-# "Production"
