@@ -1,7 +1,7 @@
 # FileLister
 
 Scans for files and subfolders in a directory and writes to
-file a list of data structured by hierarchy.
+file a list of files/folders structured by hierarchy.
 
 <p align="center">
   <img src="./images/app80_lossy.png" alt="FileLister">
@@ -33,6 +33,7 @@ optional arguments:
   -d, --includedirs     Disable of printing directory info
   -i, --indent          Disable depth indentation
 ```
+If no file given it prints the result in console.
 
 ## Authors
 
